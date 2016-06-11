@@ -1,5 +1,5 @@
-FROM debian:jessie
-MAINTAINER David Personette <dperson@dperson.com>
+FROM armhf/debian:jessie
+MAINTAINER John Nagro <john.nagro@gmail.com>
 
 # Install transmission
 RUN export DEBIAN_FRONTEND='noninteractive' && \
