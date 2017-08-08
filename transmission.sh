@@ -72,12 +72,13 @@ for env in $(printenv | grep '^TR_'); do
     name=$(cut -c4- <<< ${env%%=*} | tr '_A-Z' '-a-z')
     val="\"${env##*=}\""
     [[ "$val" =~ ^\"([0-9]+|false|true)\"$ ]] && val=$(sed 's|"||g' <<<$val)
+    sed -i 's|\([0-9A-Za-z"]\)$|\1,|' $dir/info/settings.json
     if grep -q "\"$name\"" $dir/info/settings.json; then
         sed -i "/\"$name\"/s|:.*|: $val,|" $dir/info/settings.json
     else
-        sed -i 's|\([0-9"]\)$|\1,|' $dir/info/settings.json
-        sed -i "/^}/i\    \"$name\": $val" $dir/info/settings.json
+        sed -i "/^}/i\    \"$name\": $val," $dir/info/settings.json
     fi
+    sed -rzi 's/,([^,]*)$/\1/' $dir/info/settings.json
 done
 
 watchdir=$(awk -F'=' '/"watch-dir"/ {print $2}' $dir/info/settings.json |
@@ -87,7 +88,8 @@ watchdir=$(awk -F'=' '/"watch-dir"/ {print $2}' $dir/info/settings.json |
 [[ -d $dir/info/blocklists ]] || mkdir -p $dir/info/blocklists
 [[ $watchdir && ! -d $watchdir ]] && mkdir -p $watchdir
 
-chown -Rh debian-transmission. $dir 2>&1 | grep -iv 'Read-only' || :
+chown -Rh debian-transmission. /etc/transmission-daemon/settings.json $dir 2>&1|
+            grep -iv 'Read-only' || :
 
 if [[ $# -ge 1 && -x $(which $1 2>&-) ]]; then
     exec "$@"
@@ -106,8 +108,8 @@ else
         chown debian-transmission. $dir/info/blocklists/bt_level1
     fi
     exec su -l debian-transmission -s /bin/bash -c "exec transmission-daemon \
-                --config-dir $dir/info --blocklist --encryption-preferred \
-                --dht --allowed \\* --foreground --log-info --no-portmap \
-                $([[ ${NOAUTH:-""} ]] || echo '--auth --username \
-                '"${TRUSER:-admin}"' --password '"${TRPASSWD:-admin}") 2>&1"
+                --allowed \\* --blocklist --config-dir $dir/info \
+                --foreground --log-info --no-portmap \
+                $([[ ${NOAUTH:-""} ]] && echo '--no-auth' || echo "--auth \
+                --username ${TRUSER:-admin} --password ${TRPASSWD:-admin}")"
 fi
